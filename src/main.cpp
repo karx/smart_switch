@@ -10,10 +10,45 @@
 #include<Wire.h>
 #include "RTClib.h"
 #include "esp_system.h"
+#include <Bounce2.h>
 
 
 RTC_DS1307 rtc;
 char bafi[20];
+
+enum {
+  noKey,
+  oneKey,
+  twoKeys,
+  threeKeys,
+  openLock,
+  ignoreKeys,
+  errorState
+};
+
+bool flag_1 = false;
+bool flag_2 = false;
+bool flag_3 = false;
+const byte buttons[] = {19, 18, 5, 17 };
+const byte ledPins[] = {2, 7};
+
+Bounce keys[sizeof(buttons)];
+
+const unsigned int de_Duration = 1000;
+
+bool displaySuccess = false;
+byte ds_Round;
+unsigned long ds_Start;
+unsigned int ds_currCycle;
+const unsigned int ds_Repeats = 4;
+const unsigned int ds_DurationOn = 50;
+const unsigned int ds_DurationOff = 50;
+
+byte password[] = {0, 2, 1, 3};
+
+byte state = noKey;
+byte eatKeys;
+
 
 // See the following for generating UUIDs:
 // https://www.uuidgenerator.net/
@@ -79,6 +114,13 @@ String UserSSID1 = "";
 bool flag1 = false;
 String D1;
 String msg;
+String deviceIDS;
+String SwitID;
+ String ledState_ts;
+ String epochCurrentTime;
+ String epochSetTime;
+
+DateTime now;
 int IN1 = 19;    // select the INPUT pin for the BOARD
 int IN2 = 18;
 int IN3 = 5;
@@ -87,6 +129,15 @@ int IN5 = 16;
 int IN6 = 4;
 int IN7 = 0;
 int IN8 = 2;
+
+// int IN1 = 16;    // select the INPUT pin for the BOARD
+// int IN2 = 17;
+// int IN3 = 5;
+// int IN4 = 18; 
+// int IN5 = 19;
+// int IN6 = 21;
+// int IN7 = 22;
+// int IN8 = 23;
 
 int OUT1 = 12;    // select the OUTPUT pin for the BOARD
 int OUT2 = 27;
@@ -98,6 +149,65 @@ int OUT7 = 13;
 int OUT8 = 15;
 boolean LED_state[8] = {0};
 int reset_pin = 23;
+
+void pState(byte value) {
+  switch (value) {
+    case noKey:
+      Serial.println(F("noKey"));
+      break;
+    case oneKey:
+      Serial.println(F("oneKey"));
+      break;
+    case twoKeys:
+      Serial.println(F("twoKeys"));
+      break;
+    case threeKeys:
+      Serial.println(F("threeKeys"));
+    //         for (int i = 30 ; i < 52 ; i++) {
+    //   EEPROM.writeChar(i, 0);
+    //   EEPROM.commit();
+    //   delay(200);
+    //    }
+    // Serial.println("eeprom wifi cleared");
+    // ESP.restart();
+
+      break;
+    case openLock:
+      Serial.println(F("openLock"));
+  //     for (int i = 0 ; i < 52 ; i++) {
+  //     EEPROM.writeChar(i, 0);
+  //     EEPROM.commit();
+  //     delay(200);
+
+  // }
+    Serial.println("ESP Restarted");
+    ESP.restart();
+      break;
+    case ignoreKeys:
+      Serial.println(F("ignoreKeys"));
+      break;
+    case errorState:
+      Serial.println(F("errorState"));
+      break;
+  }
+}
+bool keyCheck(byte idx, byte thenState) {
+  bool ret = keys[password[idx]].fell();
+  Serial.print(F(" key checked "));
+  Serial.print(password[idx]);
+  if (ret) {
+    state = thenState;
+    Serial.print(F(" ok"));
+  } else {
+    eatKeys = 3 - idx;
+    state = ignoreKeys;
+    Serial.print(F(" bad, eat "));
+    Serial.print(eatKeys);
+  }
+  Serial.print(F(" next "));
+  pState(state);
+  return ret;
+}
 
 void ledToggle(int o, int c){
 
@@ -635,13 +745,65 @@ void lorry(String d){
  }
 
  else if (d.startsWith("$")){
-    String deviceIDS = d.substring(slashIndex+1,secondSlashIndex);
-    String timeStamp = d.substring(secondSlashIndex+1,thirdSlashIndex);
-    String Swit = d.substring(thirdSlashIndex+1,d.indexOf("/", thirdSlashIndex + 1));
+
+    if (d.endsWith("/")){
+       deviceIDS = d.substring(d.indexOf("$")+1 ,slashIndex);
+        SwitID = d.substring(slashIndex+1,secondSlashIndex);
+        ledState_ts = d.substring(secondSlashIndex+1,thirdSlashIndex);
+        Serial.print("Device ID = ");
+        Serial.print(deviceIDS);
+        Serial.println();
+        Serial.print("Switch ID = ");
+        Serial.print(SwitID);
+        Serial.println();
+        Serial.print("LED ID = ");
+        Serial.print(ledState_ts);
+        flag_1 = true;
+    }
+    if (d.endsWith(".") && flag_1 == true){
+         epochCurrentTime = d.substring(d.indexOf("$")+1 ,d.indexOf("."));
+         Serial.println();
+        Serial.print("epochCurrentTime ID = ");
+        Serial.print(epochCurrentTime);
+        flag_2 = true;
+    }
+      if (d.endsWith("_") && flag_2 == true){
+        flag_2 = false;
+         epochSetTime = d.substring(d.indexOf("$")+1 ,d.indexOf("_"));
+        Serial.println("epochSetTime ID = ");
+        Serial.print(epochSetTime);
+        Serial.println();
+
+        flag_1 = false;
+        flag_3 = true;
+        
+        
+    }
+    
+    if (flag_3 == true)
+    {
+      Serial.println("Whole Time Stamp = ");
+      Serial.print(deviceIDS + "/"+ SwitID + "/" + ledState_ts + "/" + epochCurrentTime + "/" + epochSetTime);
+      if ( D1 == deviceIDS){
+        uint32_t epochCurrentTime1 = bswqweqwe(epochCurrentTime,epochCurrentTime.length());
+           
+  //         if (rtc.isrunning()) {
+  //   Serial.println("RTC is  running!");
+  //   // following line sets the RTC to the date & time this sketch was compiled
+  //   // This line sets the RTC with an explicit date & time, for example to set
+  //   // January 21, 2014 at 3am you would call:
+  //           rtc.adjust(DateTime(epochCurrentTime1));
+  // }
+  rtc.adjust(DateTime(2014, 1, 21, 3, 0, 0));
+    sprintf(bafi,"%02d:%02d:%02d %02d/%02d/%02d", now.hour(),now.minute(),now.second(),now.day(),now.month(),now.year());
+    Serial.print(F("Date/Time: "));
+  //   Serial.println(bafi);
+      }
+
+      flag_3 = false;
+    }       
+    }
  }
-
-}
-
 void mqttCallback(char* topic, uint8_t* payload, unsigned int length) {
   char* cleanPayload = (char*)malloc(length+1);
   payload[length] = '\0';
@@ -799,6 +961,10 @@ void ButtonDebounce(void)
     digitalWrite(OUT7, LED_state[6]);
     digitalWrite(OUT8, LED_state[7]);
 
+    if (digitalRead(IN1) == HIGH && digitalRead(IN2) == HIGH){
+        
+    }
+
     // Serial.printf("LED STATE 1 = %i, \n 2 = %i \n 3 = %i \n 4 = %i, \n 5 = %i \n 6 = %i \n 7 = %i, \n 8 = %i",LED_state[0],LED_state[1],LED_state[2],LED_state[3],LED_state[4],LED_state[5],LED_state[6],LED_state[7]);
 
     lastButtonState[0] = reading[0];
@@ -842,16 +1008,114 @@ String getMacAddress() {
 	return String(value1);
 }
 
+ void pass(){
+     static unsigned long timedStart;
+  unsigned long topLoop = millis();
+  bool keyPress = false;
 
+  for (byte idx = 0; idx < sizeof(buttons); idx++) {
+    keys[idx].update();
+    keyPress |= keys[idx].fell();
+  }
+  if (keyPress || (state == errorState)) {
+    if (keyPress) {
+      Serial.print(F("key in "));
+      pState(state);
+    }
+    switch (state) {
+      case noKey:
+        keyCheck(0, oneKey);
+        break;
+      case oneKey:
+        keyCheck(1, twoKeys);
+        break;
+      case twoKeys:
+        keyCheck(2, threeKeys);
+        break;
+      case threeKeys:
+        if (!keyCheck(3, openLock)) {
+          state = errorState;
+          timedStart = topLoop;
+          Serial.print(F(" last key bad, enter "));
+          pState(state);
+          break;
+        }
+        Serial.print(F("Fall into "));
+        pState(state);
+      case openLock:
+        displaySuccess = true;
+        ds_Round = ds_Repeats;
+        ds_Start = topLoop;
+        ds_currCycle = ds_DurationOn;
+        digitalWrite(ledPins[0], HIGH);
+        state = noKey;
+        Serial.print(F(" back to "));
+        pState(state);
+        break;
+      case errorState:
+        if (topLoop - timedStart > de_Duration) {
+          state = noKey;
+          Serial.print(F(" error time elapsed, back to "));
+          pState(state);
+        }
+        break;
+      case ignoreKeys:
+        Serial.print(F(" to eat "));
+        Serial.println(eatKeys);
+        if (eatKeys-- == 1) {
+          Serial.print(F(" last key consumed"));
+          digitalWrite(ledPins[1], HIGH);
+          timedStart = topLoop;
+          state = errorState;
+          Serial.print(F(" next "));
+          pState(state);
+        }
+        break;
+    }
+  }
+  digitalWrite(ledPins[1], state == errorState);
+  if (displaySuccess) {
+    if (topLoop - ds_Start > ds_currCycle) {
+      ds_Start = topLoop;
+      if (digitalRead(ledPins[0])) {
+        ds_currCycle = ds_DurationOff;
+      } else {
+        if (ds_Round-- != 1) {
+          ds_currCycle = ds_DurationOn;
+        } else {
+          displaySuccess = false;
+          digitalWrite(ledPins[0], HIGH);
+        }
+      }
+      digitalWrite(ledPins[0], !digitalRead(ledPins[0]));
+    }
+  }
+ }
 void setup() {
   Serial.begin(115200);
     Wire.begin();
-  if (! rtc.begin()) {
-    Serial.println("Couldn't find RTC");
-    while (1);
+//   if (! rtc.begin()) {
+//     Serial.println("Couldn't find RTC");
+//     while (1);
+//   }
+
+//  if (! rtc.isrunning()) {
+//     Serial.println("RTC is NOT running!");
+//     // following line sets the RTC to the date & time this sketch was compiled
+//     rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+//     // This line sets the RTC with an explicit date & time, for example to set
+//     // January 21, 2014 at 3am you would call:
+//     // rtc.adjust(DateTime(2014, 1, 21, 3, 0, 0));
+//   }
+
+  for (byte idx = 0; idx < sizeof(buttons); idx++) {
+    keys[idx].attach(buttons[idx], INPUT_PULLUP);
+  }
+  for (byte idx = 0; idx < sizeof(ledPins); idx++) {
+    pinMode(ledPins[idx], OUTPUT);
   }
 
-  rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+    rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
 
   pinMode(IN1, INPUT);
   pinMode(IN2, INPUT);
@@ -914,7 +1178,10 @@ void loop() {
 
   userScheduler.execute(); // it will run mesh scheduler as well
   mesh.update();
-//  DateTime now = rtc.now();
+  //  now = rtc.now();
+  //   sprintf(bafi,"%02d:%02d:%02d %02d/%02d/%02d", now.hour(),now.minute(),now.second(),now.day(),now.month(),now.year());
+  //   Serial.print(F("Date/Time: "));
+  //   Serial.println(bafi);
 
 
 
@@ -1012,14 +1279,82 @@ void loop() {
     }
 
     ButtonDebounce();
-    // if (digitalRead(reset_pin)==HIGH){
-    // for (int i = 0 ; i < 52 ; i++) {
-    // EEPROM.writeChar(i, 0);
-    // EEPROM.commit();
-    // delay(200);
-    // }
-    // Serial.print("EEPROM cleared manually");
-    // ESP.restart();
-    // }
+    pass();
 
  }
+
+// // Date and time functions using a DS1307 RTC connected via I2C and Wire lib
+// #include <Wire.h>
+// #include "RTClib.h"
+
+// RTC_DS1307 rtc;
+// int i = 0;
+//  char daysOfTheWeek[7][12] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
+
+// void setup () {
+//   while (!Serial); // for Leonardo/Micro/Zero
+
+//   Serial.begin(115200);
+//   if (! rtc.begin()) {
+//     Serial.println("Couldn't find RTC");
+//     while (1);
+//   }
+
+//   // if (! rtc.isrunning()) {
+//   //   Serial.println("RTC is NOT running!");
+//     // following line sets the RTC to the date & time this sketch was compiled
+//     rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+//     // This line sets the RTC with an explicit date & time, for example to set
+//     // January 21, 2014 at 3am you would call:
+//     // rtc.adjust(DateTime(2014, 1, 21, 3, 0, 0));
+//   // }
+// }
+
+// void loop () {
+//     DateTime now = rtc.now();
+    
+//     Serial.print(now.year(), DEC);
+//     Serial.print('/');
+//     Serial.print(now.month(), DEC);
+//     Serial.print('/');
+//     Serial.print(now.day(), DEC);
+//     Serial.print(" (");
+//     Serial.print(daysOfTheWeek[now.dayOfTheWeek()]);
+//     Serial.print(") ");
+//     Serial.print(now.hour(), DEC);
+//     Serial.print(':');
+//     Serial.print(now.minute(), DEC);
+//     Serial.print(':');
+//     Serial.print(now.second(), DEC);
+//     Serial.println();
+    
+//     // Serial.print(" since midnight 1/1/1970 = ");
+//     // Serial.print(now.unixtime());
+//     // Serial.print("s = ");
+//     // Serial.print(now.unixtime() / 86400L);
+//     // Serial.println("d");
+    
+//     // // calculate a date which is 7 days and 30 seconds into the future
+//     // DateTime future (now + TimeSpan(7,12,30,6));
+    
+//     // Serial.print(" now + 7d + 30s: ");
+//     // Serial.print(future.year(), DEC);
+//     // Serial.print('/');
+//     // Serial.print(future.month(), DEC);
+//     // Serial.print('/');
+//     // Serial.print(future.day(), DEC);
+//     // Serial.print(' ');
+//     // Serial.print(future.hour(), DEC);
+//     // Serial.print(':');
+//     // Serial.print(future.minute(), DEC);
+//     // Serial.print(':');
+//     // Serial.print(future.second(), DEC);
+//     // Serial.println();
+//     if (i == 6){
+//         rtc.adjust(DateTime(1562467787984));
+//         i = 0;
+//     }
+//     i++;
+//     Serial.println();
+//     delay(2000);
+// }
