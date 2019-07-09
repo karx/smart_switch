@@ -1183,7 +1183,7 @@ void loop() {
     beginTimer = millis();
     Serial.println("Client connected timer started");
   }
-  else if(deviceConnected == true && beginTimer != 0 && (millis() - beginTimer) > 10000){
+  else if(deviceConnected == true && beginTimer != 0 && (millis() - beginTimer) > 300000){
     Serial.println("Client connected for too long");
     deviceConnected = false;
     pServer->disconnectClient() ;
