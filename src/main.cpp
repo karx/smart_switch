@@ -74,8 +74,8 @@ void mqttCallback(char* topic, byte* payload, unsigned int length);
 #define   MESH_PASSWORD   ""
 #define   MESH_PORT       5555
 
-#define   STATION_SSID     "ESP_1"
-#define   STATION_PASSWORD "123456789q"
+// #define   STATION_SSID     "ESP_1"
+// #define   STATION_PASSWORD "123456789q"
 
 #define HOSTNAME "MQTT_Bridge"
 
@@ -116,9 +116,9 @@ String D1;
 String msg;
 String deviceIDS;
 String SwitID;
- String ledState_ts;
- String epochCurrentTime;
- String epochSetTime;
+String ledState_ts;
+String epochCurrentTime; 
+String epochSetTime;
 
 DateTime now;
 int IN1 = 19;    // select the INPUT pin for the BOARD
@@ -130,15 +130,6 @@ int IN6 = 4;
 int IN7 = 0;
 int IN8 = 2;
 
-// int IN1 = 16;    // select the INPUT pin for the BOARD
-// int IN2 = 17;
-// int IN3 = 5;
-// int IN4 = 18; 
-// int IN5 = 19;
-// int IN6 = 21;
-// int IN7 = 22;
-// int IN8 = 23;
-
 int OUT1 = 12;    // select the OUTPUT pin for the BOARD
 int OUT2 = 27;
 int OUT3 = 26;
@@ -149,6 +140,7 @@ int OUT7 = 13;
 int OUT8 = 15;
 boolean LED_state[8] = {0};
 int reset_pin = 23;
+int beginTimer = 0;
 
 void pState(byte value) {
   switch (value) {
@@ -163,23 +155,11 @@ void pState(byte value) {
       break;
     case threeKeys:
       Serial.println(F("threeKeys"));
-    //         for (int i = 30 ; i < 52 ; i++) {
-    //   EEPROM.writeChar(i, 0);
-    //   EEPROM.commit();
-    //   delay(200);
-    //    }
-    // Serial.println("eeprom wifi cleared");
-    // ESP.restart();
 
       break;
     case openLock:
       Serial.println(F("openLock"));
-  //     for (int i = 0 ; i < 52 ; i++) {
-  //     EEPROM.writeChar(i, 0);
-  //     EEPROM.commit();
-  //     delay(200);
 
-  // }
     Serial.println("ESP Restarted");
     ESP.restart();
       break;
@@ -481,13 +461,6 @@ for (int l=0;l<11;l++){
 
   Serial.println("mesh id = ");
  Serial.println(meshSsid);
-
-
-  // meshSsid.trim();
-  // Serial.println(meshSsid.length());
-  // Serial.print("SSID: ");
-  // Serial.println(meshSsid); 
-
 }
 
 void sendMessage() ; // Prototype so PlatformIO doesn't complain
@@ -567,15 +540,9 @@ void lorry(String d){
         int thirdSlashIndex = d.indexOf('/',secondSlashIndex + 1);
 
         String meshID = d.substring(0,slashIndex);
-        // Serial.print("_");
-        // Serial.print(meshID);
-        // Serial.println();
-
         BID = "";
         BID = d.substring(slashIndex+1,secondSlashIndex);
-        // Serial.print(". ");
-        // Serial.print(BID);
-        // Serial.println();
+
 
   if (d.endsWith("1") || d.endsWith("0")){                 // make conditions
         // ledState = 0;
@@ -648,13 +615,6 @@ void lorry(String d){
         meshSsid.toCharArray(MSSID,meshSsid.length()+1);
 
         }
-    // if (d.length() > 6){
-
-    //       mqttFlag = true;
-    // }
-    //        flag1 = true;
-    //        flag = true;
-      // if (d.indexOf("/")!= NULL){
 
       if (d.length() > 9){
         String UserSSID1 = d.substring(slashIndex+1,secondSlashIndex);
@@ -703,12 +663,6 @@ void lorry(String d){
   EEPROM.commit();
   delay(500);
   ESP.restart();
-
-
-
-  // EEPROM.writeChar(meshSsid.length() + 1, 1);
-  // EEPROM.commit();
-                     //Add termination null character for String Data
  }
 
  else if(d.equals("clear")){
@@ -977,13 +931,6 @@ void ButtonDebounce(void)
     lastButtonState[7] = reading[7];
 }
 uint32_t getMacAddress1(const uint8_t *hwaddr1) {
-	// uint8_t baseMac[6];
-	// // Get MAC address for WiFi station
-	// esp_read_mac(*baseMac, ESP_MAC_WIFI_STA);
-	// // char baseMacChr[18] = {0};
-	// // sprintf(baseMacChr, "%02X:%02X:%02X:%02X:%02X:%02X", baseMac[0], baseMac[1], baseMac[2], baseMac[3], baseMac[4], baseMac[5]);
-	// return uint8_t(*baseMac);
-
     uint32_t value = 0;
 
     value |= hwaddr1[2] << 24; //Big endian (aka "network order"):
@@ -1002,9 +949,6 @@ String getMacAddress() {
   uint8_t* fsas = (uint8_t*)baseMac;
   uint32_t value1 = getMacAddress1(fsas);
   Serial.println(value1);
-
-	// char baseMacChr[18] = {0};
-	// sprintf(baseMacChr, "%02X:%02X:%02X:%02X:%02X:%02X", baseMac[0], baseMac[1], baseMac[2], baseMac[3], baseMac[4], baseMac[5]);
 	return String(value1);
 }
 
@@ -1209,62 +1153,19 @@ void loop() {
       Serial.println("Ready");
     } 
   }
-  // if ( (now.minute() % 2) == 0){
-
-  // }
-    }
+}
 
  if (deviceConnected && flag) {
-
-        // uint8_t gj= 9899213123123123123; //hasd(StatusBT, StatusBT.length())
-
-      //  if(flag1 == true){
-      //   char response[3] ;
-      //   String res = "OK";
-      //   res.toCharArray(response, res.length()+1);
-      //   pTxCharacteristic->setValue(response);  
-      //   pTxCharacteristic->setNotifyProperty(true);
-      //   pTxCharacteristic->notify();
-      //   Serial.println("from loop flag");
-      //   flag1 = false;
-      //   ESP.restart();
-      //   }  // first check id for itself else sendSingle
-
-
-      //   else
-      //   {
         char toSend[20] ;
         StatusBT.toCharArray(toSend, StatusBT.length()+1);
         pTxCharacteristic->setValue(toSend);
         // pTxCharacteristic->setNotifyProperty(true);
         pTxCharacteristic->notify();
         Serial.println("from loop flag status");
-        // }
-        
-
-
-
-
 		delay(10); // bluetooth stack will go into congestion, if too many packets are sent
     flag = false ; 
     
 	}
-
-  //  if (deviceConnected && mqttFlag && flag1) {
-  //       char response[20] ;
-  //       String res = "OK";
-  //       StatusBT.toCharArray(response, res.length()+1);
-  //       pTxCharacteristic->setValue(response);
-  //       pTxCharacteristic->setNotifyProperty(true);
-  //       pTxCharacteristic->notify();
-  //       delay(10); 
-  //       flag1  = false;
-  //           mqttFlag = false ; 
-  //           ESP.restart();
-
-  //  }
-
-
     // disconnecting
     if (!deviceConnected && oldDeviceConnected) {
         delay(500); // give the bluetooth stack the chance to get things ready
@@ -1278,83 +1179,21 @@ void loop() {
         oldDeviceConnected = deviceConnected;
     }
 
+      if(deviceConnected == true && beginTimer == 0){
+    beginTimer = millis();
+    Serial.println("Client connected timer started");
+  }
+  else if(deviceConnected == true && beginTimer != 0 && (millis() - beginTimer) > 10000){
+    Serial.println("Client connected for too long");
+    deviceConnected = false;
+    pServer->disconnectClient() ;
+  }
+  else if(deviceConnected == false && beginTimer != 0){
+    beginTimer = 0;
+    Serial.println("Client disconnected timer reset");
+  }
+
     ButtonDebounce();
     pass();
 
  }
-
-// // Date and time functions using a DS1307 RTC connected via I2C and Wire lib
-// #include <Wire.h>
-// #include "RTClib.h"
-
-// RTC_DS1307 rtc;
-// int i = 0;
-//  char daysOfTheWeek[7][12] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
-
-// void setup () {
-//   while (!Serial); // for Leonardo/Micro/Zero
-
-//   Serial.begin(115200);
-//   if (! rtc.begin()) {
-//     Serial.println("Couldn't find RTC");
-//     while (1);
-//   }
-
-//   // if (! rtc.isrunning()) {
-//   //   Serial.println("RTC is NOT running!");
-//     // following line sets the RTC to the date & time this sketch was compiled
-//     rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
-//     // This line sets the RTC with an explicit date & time, for example to set
-//     // January 21, 2014 at 3am you would call:
-//     // rtc.adjust(DateTime(2014, 1, 21, 3, 0, 0));
-//   // }
-// }
-
-// void loop () {
-//     DateTime now = rtc.now();
-    
-//     Serial.print(now.year(), DEC);
-//     Serial.print('/');
-//     Serial.print(now.month(), DEC);
-//     Serial.print('/');
-//     Serial.print(now.day(), DEC);
-//     Serial.print(" (");
-//     Serial.print(daysOfTheWeek[now.dayOfTheWeek()]);
-//     Serial.print(") ");
-//     Serial.print(now.hour(), DEC);
-//     Serial.print(':');
-//     Serial.print(now.minute(), DEC);
-//     Serial.print(':');
-//     Serial.print(now.second(), DEC);
-//     Serial.println();
-    
-//     // Serial.print(" since midnight 1/1/1970 = ");
-//     // Serial.print(now.unixtime());
-//     // Serial.print("s = ");
-//     // Serial.print(now.unixtime() / 86400L);
-//     // Serial.println("d");
-    
-//     // // calculate a date which is 7 days and 30 seconds into the future
-//     // DateTime future (now + TimeSpan(7,12,30,6));
-    
-//     // Serial.print(" now + 7d + 30s: ");
-//     // Serial.print(future.year(), DEC);
-//     // Serial.print('/');
-//     // Serial.print(future.month(), DEC);
-//     // Serial.print('/');
-//     // Serial.print(future.day(), DEC);
-//     // Serial.print(' ');
-//     // Serial.print(future.hour(), DEC);
-//     // Serial.print(':');
-//     // Serial.print(future.minute(), DEC);
-//     // Serial.print(':');
-//     // Serial.print(future.second(), DEC);
-//     // Serial.println();
-//     if (i == 6){
-//         rtc.adjust(DateTime(1562467787984));
-//         i = 0;
-//     }
-//     i++;
-//     Serial.println();
-//     delay(2000);
-// }
